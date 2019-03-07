@@ -1,0 +1,10 @@
+PACSTALKER: Pacman
+
+* Introduction
+* Use of the network
+** TLS session
+   Pacman seems to use one tls session for each package he installs.
+   That way it is quite easy to delimitate a package transfer with tools such as wireshark.
+** How to get the package size ?
+   We just have to sum all packet size and substract the size of the header!
+   Then it should be possible to have an approximate size of the whole package in order to compare it with the mirror database.
