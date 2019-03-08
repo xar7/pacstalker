@@ -11,6 +11,6 @@
 * Package manager
 ** TODO Pacman
 ** TODO APT (Debian)
-* Script
+* TODO Script
   The idea is to be able to get a script that will take as input a network capture and compute the size of the installed packages.
   Then the script would compare it to all packets size in the mirrors to deduce which packages were installed or updated.
