@@ -1,0 +1,19 @@
+PACSTALKER
+
+* apt
+  APT does not use https and they are quite explicit about it.
+  see website : whydoesaptnotusehttps.com !
+  Actually what they say is pretty accurate ...
+  What is the purpose of https as anyone could guess what packages you're installing by analyzing time or size ?
+* dnf
+  dfn does use some ssl/tls sessions to transfer the application data.
+  What is quite impressive is that dnf does not use https for the get request it sends.
+  So one can actually just read the get request to see what package is being installed/updated.
+* Pacman
+  Almost all pacman connections are made throught ssl/tls.
+** TLS session
+   Pacman seems to use one tls session for each package he installs.
+   That way it is quite easy to delimitate a package transfer with tools such as wireshark.
+** How to get the package size ?
+   We just have to sum all packet size and substract the size of the header!
+   Then it should be possible to have an approximate size of the whole package in order to compare it with the mirror database.
