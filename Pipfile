@@ -8,6 +8,7 @@ verify_ssl = true
 [packages]
 scapy = "*"
 cryptography = "*"
+numpy = "*"
 
 [requires]
 python_version = "3.7"
