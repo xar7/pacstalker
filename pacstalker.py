@@ -4,6 +4,7 @@ from os import path
 from sys import argv
 from numpy import log as ln
 from scapy.all import *
+from scapy_http.http import *
 
 def getpkglist():
     """
@@ -71,7 +72,6 @@ def search_match(size, pkg_list, eps):
 
         c += 1
         if c > 100:
-            print('too long lol')
             break
 
     return begin, end
@@ -86,14 +86,25 @@ def analyze_pcap(pcapfile):
     header_size = 80
 
     sessions = packets.sessions()
+    tls_size = 0
+    no_tls_size = 0
+    lol_size = 0
     for s in sessions:
-        counter += 1
-        if counter == 4:
-            for pkt in sessions[s]:
-                estimated_size += len(pkt) - header_size
+        print(f"Session : {s}")
+        for pkt in sessions[s]:
+            estimated_size += len(pkt) - header_size
+            # print(f"{len(pkt)}")
+            # lol_size += pkt.len
+            if pkt.haslayer(TLS):
+                tls_size += len(pkt)
+            else:
+                no_tls_size += len(pkt)
 
-    print(f"{len(sessions)} sessions were found.")
-    print(f"Estimated size of your package: {estimated_size} bytes.")
+        # print(f"{len(sessions)} sessions were found.")
+        print(f"{tls_size} bytes were transferred with TLS.")
+        print(f"{no_tls_size} bytes were transferred without TLS protocol.")
+        print(f"Estimated size of your package: {estimated_size} bytes.")
+        # print(f"Or perhaps is it {lol_size} bytes lol.")
 
     pkg_list = loadpkglist()
     eps = 10000 # 10 ko
@@ -109,4 +120,26 @@ if (len(argv) == 1):
 if (len(argv) > 2):
     print("Only the first input file will be considered.")
 
-analyze_pcap(argv[1])
+def analyze_pcap_clear(pcapfile):
+    packets = rdpcap(pcapfile)
+    dst, src, estimated_size = 0, 0, 0
+
+    transfer_s = ""
+    sessions = packets.sessions()
+
+    for s in sessions:
+        for pkt in sessions[s]:
+            if (pkt.haslayer(HTTPResponse)):
+                transfer_s = s
+                dst = pkt[IP].dst
+                src = pkt[IP].src
+
+    for pkt in sessions[transfer_s]:
+        if (pkt.haslayer(Raw)):
+            estimated_size += len(pkt[Raw].load)
+
+    print(f"Size transferred during this session: {estimated_size} bytes.")
+
+
+analyze_pcap_clear(argv[1])
+# analyze_pcap(argv[1])
