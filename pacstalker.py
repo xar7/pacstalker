@@ -79,40 +79,29 @@ def search_match(size, pkg_list, eps):
 def analyze_pcap(pcapfile):
     load_layer("tls")
     packets = rdpcap(pcapfile)
-    counter = 0
-    estimated_size = 0
-
-    # Kind of magic number found thanks to wireshark.
-    header_size = 80
+    lol_size, estimated_size = 0, 0
 
     sessions = packets.sessions()
-    tls_size = 0
-    no_tls_size = 0
-    lol_size = 0
     for s in sessions:
-        print(f"Session : {s}")
         for pkt in sessions[s]:
-            estimated_size += len(pkt) - header_size
-            # print(f"{len(pkt)}")
-            # lol_size += pkt.len
-            if pkt.haslayer(TLS):
-                tls_size += len(pkt)
-            else:
-                no_tls_size += len(pkt)
+            if pkt.haslayer(TLSServerHello):
+                transfer_s = s
 
-        # print(f"{len(sessions)} sessions were found.")
-        print(f"{tls_size} bytes were transferred with TLS.")
-        print(f"{no_tls_size} bytes were transferred without TLS protocol.")
-        print(f"Estimated size of your package: {estimated_size} bytes.")
-        # print(f"Or perhaps is it {lol_size} bytes lol.")
+    for pkt in sessions[transfer_s]:
+        print(f"{pkt.summary()} {len(pkt)}")
+        lol_size += len(pkt.payload)
+        if (pkt.haslayer(TLSApplicationData)):
+            if (pkt[TLS].payload):
+                estimated_size += pkt[TLS].payload.len
+        elif (pkt.haslayer(SSLv2)):
+            pass
+#            estimated_size += pkt[SSLv2].len
+#            if (pkt[SSLv2].payload):
+#                estimated_size += pkt[SSLv2].payload.len
+#
 
-    pkg_list = loadpkglist()
-    eps = 10000 # 10 ko
-    print('Your package matches:')
-    begin, end = search_match(estimated_size, pkg_list, eps)
-
-    for j in range(begin, end):
-        print(pkg_list[j]['name'])
+    print(f"Estimated size : {estimated_size}")
+    print(f"Lolsize : {lol_size}")
 
 if (len(argv) == 1):
     print("No input file.")
@@ -122,7 +111,7 @@ if (len(argv) > 2):
 
 def analyze_pcap_clear(pcapfile):
     packets = rdpcap(pcapfile)
-    dst, src, estimated_size = 0, 0, 0
+    estimated_size = 0
 
     transfer_s = ""
     sessions = packets.sessions()
@@ -131,8 +120,7 @@ def analyze_pcap_clear(pcapfile):
         for pkt in sessions[s]:
             if (pkt.haslayer(HTTPResponse)):
                 transfer_s = s
-                dst = pkt[IP].dst
-                src = pkt[IP].src
+                ptest = pkt
 
     for pkt in sessions[transfer_s]:
         if (pkt.haslayer(Raw)):
@@ -141,5 +129,5 @@ def analyze_pcap_clear(pcapfile):
     print(f"Size transferred during this session: {estimated_size} bytes.")
 
 
-analyze_pcap_clear(argv[1])
-# analyze_pcap(argv[1])
+# analyze_pcap_clear(argv[1])
+analyze_pcap(argv[1])
