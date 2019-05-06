@@ -5,6 +5,7 @@ from sys import argv
 from numpy import log as ln
 from scapy.all import *
 from scapy_http.http import *
+from optparse import OptionParser
 
 def getpkglist():
     """
@@ -76,38 +77,45 @@ def search_match(size, pkg_list, eps):
 
     return begin, end
 
-def analyze_pcap(pcapfile):
-    load_layer("tls")
-    packets = rdpcap(pcapfile)
-    lol_size, estimated_size = 0, 0
+def expand_layers(pkt):
+    yield pkt
+    while pkt.payload:
+        pkt = pkt.payload
+        yield pkt
 
-    sessions = packets.sessions()
+def get_tls_transfer(sessions):
     for s in sessions:
         for pkt in sessions[s]:
             if pkt.haslayer(TLSServerHello):
-                transfer_s = s
+                pkt.show()
+                return s;
+
+def analyze_pcap(pcapfile):
+    load_layer("tls")
+    packets = rdpcap(pcapfile)
+
+    estimated_size = 0
+    ip_tcp_header_size = 52 + 32
+    tls_header_size = 5
+    http_header_size = 254
+    sessions = packets.sessions()
+
+    transfer_s = get_tls_transfer(sessions)
 
     for pkt in sessions[transfer_s]:
-        print(f"{pkt.summary()} {len(pkt)}")
-        lol_size += len(pkt.payload)
         if (pkt.haslayer(TLSApplicationData)):
-            if (pkt[TLS].payload):
-                estimated_size += pkt[TLS].payload.len
+            estimated_size += pkt.len - ip_tcp_header_size - tls_header_size
         elif (pkt.haslayer(SSLv2)):
-            pass
-#            estimated_size += pkt[SSLv2].len
-#            if (pkt[SSLv2].payload):
-#                estimated_size += pkt[SSLv2].payload.len
-#
+            estimated_size += pkt.len - ip_tcp_header_size - tls_header_size
+
+        if (pkt.haslayer(TLSApplicationData) and pkt.haslayer(SSLv2)):
+            pkt.show()
+
+
+    estimated_size -= http_header_size
 
     print(f"Estimated size : {estimated_size}")
-    print(f"Lolsize : {lol_size}")
 
-if (len(argv) == 1):
-    print("No input file.")
-    exit(1)
-if (len(argv) > 2):
-    print("Only the first input file will be considered.")
 
 def analyze_pcap_clear(pcapfile):
     packets = rdpcap(pcapfile)
@@ -124,10 +132,21 @@ def analyze_pcap_clear(pcapfile):
 
     for pkt in sessions[transfer_s]:
         if (pkt.haslayer(Raw)):
-            estimated_size += len(pkt[Raw].load)
+            estimated_size += len(pkt.load)
 
     print(f"Size transferred during this session: {estimated_size} bytes.")
 
 
-# analyze_pcap_clear(argv[1])
-analyze_pcap(argv[1])
+
+parser = OptionParser(usage = "Usage: pacstalker.py [options] <record>")
+parser.add_option("-c", "--clear", action="store_true", default=False, help="to analyze clear traffic (no tls for testing purposes)");
+
+(options, args) = parser.parse_args()
+
+if not args:
+    parser.error("Pcap record not given.")
+
+if options.clear:
+    analyze_pcap_clear(args[0])
+else:
+    analyze_pcap(args[0])
