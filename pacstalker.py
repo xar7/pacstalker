@@ -17,6 +17,8 @@ def getpkglist():
     mirror_link = 'https://mirror.osbeck.com/archlinux'
     core_sub = '/core/os/x86_64/'
 
+    print(f"Dowloading package list from: {mirror_link}")
+
     # Must use a header or I could get a 403 from mirror!
     fake_headers = { 'User-Agent' : 'Pacstalker' }
     req_core = Request(mirror_link + core_sub, headers=fake_headers)
@@ -25,7 +27,6 @@ def getpkglist():
     content = sub(r'<.*?>', '', content)
     lines = content.split('\r\n')
 
-    # Get all line but the first and last one which useless.
     with open('package_list', 'w') as pkg_list_file:
         for l in lines[1:-1]:
             pkg_list_file.write(l + '\n')
@@ -35,7 +36,7 @@ def getpkglist():
 
 def loadpkglist():
     if not path.isfile('package_list'):
-        print('Package list not found.\nDownloading it from mirror.')
+        print('Package list not found.\n')
         getpkglist()
     else:
         print('Package list found.')
@@ -64,7 +65,7 @@ def search_match(size, pkg_list, eps):
     m = pkg_list[(end+begin)//2]['size']
 
     c = 0
-    while end - begin > 4:
+    while end - begin > 1:
         if m > size + eps:
             end = (end+begin)//2
         if m < size - eps:
@@ -75,19 +76,16 @@ def search_match(size, pkg_list, eps):
         if c > 100:
             break
 
-    return begin, end
+    print("Your package matches:")
+    for i in range(begin, end):
+        print(f"{pkg_list[i]['name']} S:{pkg_list[i]['size']} LM:{pkg_list[i]['date']}")
 
-def expand_layers(pkt):
-    yield pkt
-    while pkt.payload:
-        pkt = pkt.payload
-        yield pkt
+    return begin, end
 
 def get_tls_transfer(sessions):
     for s in sessions:
         for pkt in sessions[s]:
             if pkt.haslayer(TLSServerHello):
-                pkt.show()
                 return s;
 
 def analyze_pcap(pcapfile):
@@ -97,24 +95,24 @@ def analyze_pcap(pcapfile):
     estimated_size = 0
     ip_tcp_header_size = 52 + 32
     tls_header_size = 5
-    http_header_size = 254
+    http_header_size = 0
     sessions = packets.sessions()
 
     transfer_s = get_tls_transfer(sessions)
+    c = 0
 
     for pkt in sessions[transfer_s]:
-        if (pkt.haslayer(TLSApplicationData)):
-            estimated_size += pkt.len - ip_tcp_header_size - tls_header_size
-        elif (pkt.haslayer(SSLv2)):
-            estimated_size += pkt.len - ip_tcp_header_size - tls_header_size
-
-        if (pkt.haslayer(TLSApplicationData) and pkt.haslayer(SSLv2)):
-            pkt.show()
-
+        if (pkt.haslayer(TLSApplicationData) or pkt.haslayer(SSLv2)):
+            estimated_size += len(pkt[TCP].payload) - tls_header_size
+            c += 1
+        # elif (pkt.haslayer(SSLv2)):
+        #     estimated_size += len(pkt[TCP].payload) - tls_header_size
 
     estimated_size -= http_header_size
 
-    print(f"Estimated size : {estimated_size}")
+    print(f"Number of ApplicationData packets: {c}\nEstimated size : {estimated_size}")
+
+    return estimated_size
 
 
 def analyze_pcap_clear(pcapfile):
@@ -136,17 +134,29 @@ def analyze_pcap_clear(pcapfile):
 
     print(f"Size transferred during this session: {estimated_size} bytes.")
 
+    return estimated_size
+
 
 
 parser = OptionParser(usage = "Usage: pacstalker.py [options] <record>")
-parser.add_option("-c", "--clear", action="store_true", default=False, help="to analyze clear traffic (no tls for testing purposes)");
+parser.add_option("-c", "--clear", action="store_true", default=False, help="to analyze clear traffic (no tls for testing purposes)")
+parser.add_option("-u", "--update", action="store_true", default=False, help="update package list from mirror")
+parser.add_option("-s", "--size", action="store_true", default=False, help="just print the estimated size of the record and does not try to match package")
 
 (options, args) = parser.parse_args()
 
 if not args:
     parser.error("Pcap record not given.")
 
+if options.update:
+    getpkglist()
+
+size = 0
 if options.clear:
-    analyze_pcap_clear(args[0])
+    size = analyze_pcap_clear(args[0])
 else:
-    analyze_pcap(args[0])
+    size = analyze_pcap(args[0])
+
+if not options.size:
+    pkg_list = loadpkglist()
+    search_match(size, pkg_list, 10)

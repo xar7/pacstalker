@@ -17,3 +17,10 @@ PACSTALKER
 ** How to get the package size ?
    We just have to sum all packet size and substract the size of the header!
    Then it should be possible to have an approximate size of the whole package in order to compare it with the mirror database.
+
+
+* Missing sizes
+- acl: 580 en + pour 102 paquets
+- automake: 1013 en + pour 452 paquets
+- binutils: 27692 en + pour 3701 paquets
+- less: 35054 en + pour 103 paquets&
