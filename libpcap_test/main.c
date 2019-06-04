@@ -11,6 +11,7 @@
 
 void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) {
     DBG("Entering pktHandler: len = %u\n", h->len);
+
     const struct ether_header *ethHeader;
     const struct ip *ipHeader;
     const struct tcphdr *tcpHeader;
@@ -48,8 +49,7 @@ void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
 
                 if (dataLength - tcpHeader->th_off * 4 != 0) {
                     struct tlshdr *tlsHeader = (struct tlshdr *) ((void *) tcpHeader
-                                                                  + tcpHeader->th_off
-                                                                  + sizeof(struct tcphdr));
+                                                                  + tcpHeader->th_off * 4);
 
                     DBG("TLS:  Type=%u LegacyVersion=%u Length=%u\n", tlsHeader->type,
                         tlsHeader->legacy_version,

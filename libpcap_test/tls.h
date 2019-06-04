@@ -2,9 +2,9 @@
 #define TLS_H
 
 struct tlshdr {
-    unsigned int type : 1;
-    unsigned int legacy_version : 2;
-    unsigned int length : 2;
+    uint8_t type;
+    uint16_t legacy_version;
+    uint16_t length;
 };
 
 #endif /* TLS_H */
