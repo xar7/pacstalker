@@ -25,15 +25,12 @@ void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
     int dataLength = 0;
 
     /* The current offset to the find the next tls header */
-    static size_t current_offset = 0;
+    static size_t remaining_size = 0;
 
     ethHeader = (struct ether_header *) bytes;
 
     if (ntohs(ethHeader->ether_type) == ETHERTYPE_IP) {
         ipHeader = (struct ip *)(bytes + sizeof(struct ether_header));
-        inet_ntop(AF_INET, &(ipHeader->ip_src), sourceIp, INET_ADDRSTRLEN);
-        inet_ntop(AF_INET, &(ipHeader->ip_dst), destIp, INET_ADDRSTRLEN);
-
         if (ipHeader->ip_p == IPPROTO_TCP) {
             tcpHeader = (struct tcphdr *)(bytes + sizeof(struct ether_header)
                                           + sizeof(struct ip));
@@ -47,34 +44,43 @@ void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
             DBG("Datasize: %d\n", dataLength - tcpHeader->th_off * 4);
 
             size_t tls_size = dataLength - tcpHeader->th_off * 4;
+            DBG("tls_size: %lu\n", tls_size);
 
-            if (current_offset != 0)
-                DBG("CURRENT_OFFSET = %u\n", current_offset);
+            if (remaining_size != 0)
+                DBG("REMAINING_SIZE = %u\n", remaining_size);
 
-            if (tls_size != 0){
-                struct tlshdr *tlsHeader;
-                if (tls_size > current_offset)
-                {
+            /**
+             * We are on a TCP packet, we now have to check the tls
+             * header to get the size of the encrypted data.
+             * It is possible that the header is not at the start but
+             * in the middle of the packet, the start being the rest
+             * of a previous tls packet.
+             **/
+
+            struct tlshdr *tlsHeader;
+            tlsHeader = (struct tlshdr *) ((char *) tcpHeader
+                                           + tcpHeader->th_off * 4);
+
+            while (tls_size > 0) {
+                if (remaining_size == 0)
                     tlsHeader = (struct tlshdr *) ((char *) tcpHeader
                                                    + tcpHeader->th_off * 4);
-
-                    current_offset = tlsHeader->length
-                        - (tls_size + current_offset + sizeof(struct tlshdr));
-
-                    if (tlsHeader->type == 0x23)
-                    {
-                        encrypted_size += tlsHeader->length;
-                        DBG("TLS ApplicationData");
-                    }
-
-                    DBG("TLS:  Type=%u LegacyVersion=%u Length=%u\n",
-                        tlsHeader->type,
-                        ntohs(tlsHeader->legacy_version),
-                        ntohs(tlsHeader->length));
-
+                else if (remaining_size > tls_size)
+                    remaining_size -= tls_size;
+                else if (remaining_size < tls_size)
+                {
+                    tlsHeader = (struct tlshdr *) ((char *) tcpHeader
+                                                   + tcpHeader->th_off * 4
+                                                   + remaining_size);
+                    remaining_size = 0;
                 }
-                else
-                    current_offset -= tls_size;
+                DBG("TLS: Type:%u Version: %u Length:%u\n", tlsHeader->type,
+                    ntohs(tlsHeader->legacy_version), ntohs(tlsHeader->length));
+
+                if (tlsHeader->type != TLS_APPLICATION_DATA)
+                    break; /* We don't care if not APP DATA */
+
+                tls_size -= ntohs(tlsHeader->length);
             }
         }
     }

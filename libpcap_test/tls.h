@@ -1,6 +1,8 @@
 #ifndef TLS_H
 #define TLS_H
 
+#define TLS_APPLICATION_DATA (0x17)
+
 struct tlshdr {
     uint8_t type;
     uint16_t legacy_version;
