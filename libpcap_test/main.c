@@ -54,8 +54,10 @@ size_t get_tls_size() {
         DBG("TLSHeader: TYPE:%u VERSION:%u LENGTH:%u\n", tlsHeader->type, ntohs(tlsHeader->legacy_version),
             ntohs(tlsHeader->length));
 
-        if (tlsHeader->type == TLS_APPLICATION_DATA)
+        if (tlsHeader->type == TLS_APPLICATION_DATA) {
             total_size += ntohs(tlsHeader->length);
+            DBG("ADDING\n");
+        }
 
         my_offset += sizeof(struct tlshdr) + ntohs(tlsHeader->length);
     }
@@ -77,7 +79,7 @@ int main(void)
         return 1;
     }
 
-    mypcap = pcap_open_offline("../pcap/sl_tls.pcap", errbuf);
+    mypcap = pcap_open_offline("../pcap/binutils.pcap", errbuf);
     if (!mypcap) {
         fprintf(stderr, "pcap_open_live() failed: %s", errbuf);
         return 1;
