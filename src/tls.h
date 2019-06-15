@@ -2,6 +2,7 @@
 #define TLS_H
 
 #define TLS_BEGIN_SIZE (4096)
+#define TLS_PORT (443)
 #define TLS_APPLICATION_DATA (0x17)
 
 struct tlshdr {

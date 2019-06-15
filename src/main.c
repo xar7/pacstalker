@@ -18,6 +18,7 @@ size_t tls_data_size = TLS_BEGIN_SIZE;
 size_t current_offset = 0;
 
 void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) {
+    (void) user;
     const struct ether_header *ethHeader = (const struct ether_header *) bytes;
 
     if (ntohs(ethHeader->ether_type) == ETHERTYPE_IP) {
@@ -26,6 +27,10 @@ void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
         if (ipHeader->ip_p == IPPROTO_TCP) {
             struct tcphdr *tcpHeader = (struct tcphdr *)(bytes + sizeof(struct ether_header)
                                           + sizeof(struct ip));
+
+            /* /\* We just want the TLS traffic! *\/ */
+            if (ntohs(tcpHeader->source) != TLS_PORT)
+                return;
 
             size_t useless_size = (size_t) tcpHeader + tcpHeader->th_off * 4
                 - (size_t) bytes;
@@ -46,6 +51,7 @@ void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
 }
 
 size_t get_tls_size(bool keep_header) {
+    (void) keep_header;
     size_t my_offset = 0;
     size_t total_size = 0;
 

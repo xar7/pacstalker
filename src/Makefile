@@ -1,4 +1,4 @@
-CFLAGS = -Wall -lpcap -g
+CFLAGS = -Wall -Wextra -Werror -lpcap -g -pedantic
 OBJ = main.o
 EXEC = pacstalker
 
