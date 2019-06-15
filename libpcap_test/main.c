@@ -105,7 +105,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    mypcap = pcap_open_offline("../pcap/sl_tls.pcap", errbuf);
+    mypcap = pcap_open_offline(argv[argc - 1], errbuf);
     if (!mypcap) {
         fprintf(stderr, "pcap_open_live() failed: %s\n", errbuf);
         return 1;
