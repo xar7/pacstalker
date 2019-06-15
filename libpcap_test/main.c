@@ -3,7 +3,9 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <getopt.h>
 #include <pcap/pcap.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,7 +45,7 @@ void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
     }
 }
 
-size_t get_tls_size() {
+size_t get_tls_size(bool keep_header) {
     size_t my_offset = 0;
     size_t total_size = 0;
 
@@ -51,12 +53,12 @@ size_t get_tls_size() {
     {
         struct tlshdr *tlsHeader = (struct tlshdr *) (tls_data_base + my_offset);
 
-        DBG("TLSHeader: TYPE:%u VERSION:%u LENGTH:%u\n", tlsHeader->type, ntohs(tlsHeader->legacy_version),
+        DBG("TLSHeader: Type:%u Version:%u Length:%u\n", tlsHeader->type, ntohs(tlsHeader->legacy_version),
             ntohs(tlsHeader->length));
 
         if (tlsHeader->type == TLS_APPLICATION_DATA) {
             total_size += ntohs(tlsHeader->length);
-            DBG("ADDING\n");
+            DBG("TLSApplicationData found: Incrementing size\n");
         }
 
         my_offset += sizeof(struct tlshdr) + ntohs(tlsHeader->length);
@@ -66,31 +68,55 @@ size_t get_tls_size() {
 }
 
 
-int main(void)
+int main(int argc, char **argv)
 {
     DBG("Pacstalker: running in debug mode!\n");
 
     pcap_t *mypcap;
     char errbuf[PCAP_ERRBUF_SIZE];
 
+    int opt = 0;
+    int option_index = 0;
+    bool keep_header = false;
+    struct option options[] = {
+        {"help", no_argument, 0, 'h'},
+        {"keep_header", no_argument, 0, 'k'}
+    };
+
+    while ((opt = getopt_long(argc, argv, "hk", options, &option_index)) != -1) {
+        switch (opt) {
+        case 'h':
+            puts("Pacstalker is a pcap analysis tool that is capable of determinating the total size of the tls encrypted data contained in a pcap record.\n");
+            puts("Usage: ./pacstalker [option] pcaprecord\n");
+            puts("Options:\n\t--help -h: Display this help and exit\n\t--keep_header -k: Keep the size of the html header when calculating the tls total size.\n");
+            return 0;
+        case 'k':
+            keep_header = true;
+            break;
+        default:
+            fprintf(stderr, "invalid option bro!\n");
+            break;
+        }
+    }
+
     tls_data_base = malloc(TLS_BEGIN_SIZE);
     if (!tls_data_base) {
-        fprintf(stderr, "malloc() failed, you are in deep shit");
+        fprintf(stderr, "malloc() failed, you are in deep shit\n");
         return 1;
     }
 
-    mypcap = pcap_open_offline("../pcap/binutils.pcap", errbuf);
+    mypcap = pcap_open_offline("../pcap/sl_tls.pcap", errbuf);
     if (!mypcap) {
-        fprintf(stderr, "pcap_open_live() failed: %s", errbuf);
+        fprintf(stderr, "pcap_open_live() failed: %s\n", errbuf);
         return 1;
     }
 
     if (pcap_loop(mypcap, -1, pktHandler, NULL) != 0) {
-        fprintf(stderr, "pcap_loop() failed: %s", pcap_geterr(mypcap));
+        fprintf(stderr, "pcap_loop() failed: %s\n", pcap_geterr(mypcap));
         return 1;
     }
 
-    printf("Total tls size: %zu\n", get_tls_size());
+    printf("Total tls size: %zu\n", get_tls_size(keep_header));
 
     return 0;
 }
