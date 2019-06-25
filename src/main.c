@@ -13,6 +13,8 @@
 #include "debug.h"
 #include "tls.h"
 
+#define HTTP_HEADER_SIZE 299
+
 char *tls_data_base = 0;
 size_t tls_data_size = TLS_BEGIN_SIZE;
 size_t current_offset = 0;
@@ -28,7 +30,7 @@ void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
             struct tcphdr *tcpHeader = (struct tcphdr *)(bytes + sizeof(struct ether_header)
                                           + sizeof(struct ip));
 
-            /* /\* We just want the TLS traffic! *\/ */
+            /* We just want the TLS traffic! */
             if (ntohs(tcpHeader->source) != TLS_PORT)
                 return;
 
@@ -54,8 +56,9 @@ size_t get_tls_size(bool keep_header) {
     (void) keep_header;
     size_t my_offset = 0;
     size_t total_size = 0;
+    int c = 0;
 
-    while (my_offset != current_offset)
+    while (my_offset < current_offset)
     {
         struct tlshdr *tlsHeader = (struct tlshdr *) (tls_data_base + my_offset);
 
@@ -63,14 +66,16 @@ size_t get_tls_size(bool keep_header) {
             ntohs(tlsHeader->length));
 
         if (tlsHeader->type == TLS_APPLICATION_DATA) {
-            total_size += ntohs(tlsHeader->length);
+            c++;
+            total_size += ntohs(tlsHeader->length) - 23;
             DBG("TLSApplicationData found: Incrementing size\n");
         }
 
+        DBG("TLS: Number of application data found: %d\n", c);
         my_offset += sizeof(struct tlshdr) + ntohs(tlsHeader->length);
     }
 
-    return total_size;
+    return total_size - HTTP_HEADER_SIZE;
 }
 
 
@@ -122,7 +127,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    printf("Total tls size: %zu\n", get_tls_size(keep_header));
+    printf("%zu\n", get_tls_size(keep_header));
 
     return 0;
 }
