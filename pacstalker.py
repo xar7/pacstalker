@@ -77,13 +77,15 @@ def search_match(size, pkg_list, eps):
         if c > 100:
             break
 
+    matching_pkg = []
     for i in range(begin, end):
-        pkg_list[i]['match'] = abs(pkg_list[i]['size'] - size) / size * 100;
+        pkg_list[i]['match'] = 100 - abs(pkg_list[i]['size'] - size) / size * 100
+        matching_pkg.append(pkg_list[i])
 
+    matching_pkg.sort(key=lambda p : p['match'], reverse=True)
     print("Your package matches:")
-    for i in range(begin, end):
-        match = 100 - abs(pkg_list[i]['size'] - size) / size * 100;
-        print(f" M:{match:.4}% S:{pkg_list[i]['size']} LM:{pkg_list[i]['date']} {pkg_list[i]['name']}")
+    for pkg in matching_pkg:
+        print(f" M:{pkg['match']:.4}% S:{pkg['size']} LM:{pkg['date']} {pkg['name']}")
 
     return begin, end
 
