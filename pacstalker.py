@@ -1,6 +1,7 @@
 from urllib.request import urlopen, Request
 from re import sub
 from os import path
+from os import remove
 from sys import argv
 from numpy import log as ln
 from scapy.all import *
@@ -16,22 +17,27 @@ def getpkglist():
     Automatically called by loadpkglist when the file is not found in local.
     """
 
-    mirror_link = 'https://mirror.osbeck.com/archlinux'
-    core_sub = '/core/os/x86_64/'
+    # Delete the existing package list
+    remove('package_list')
 
-    print(f"Dowloading package list from: {mirror_link}")
+    #mirror_link = 'https://mirror.osbeck.com/archlinux'
+    mirror_link = 'https://mirrors.niyawe.de/archlinux/'
+    subs = ['/core/os/x86_64/', '/community/os/x86_64/', '/extra/os/x86_64/']
 
-    # Must use a header or I could get a 403 from mirror!
-    fake_headers = { 'User-Agent' : 'Pacstalker' }
-    req_core = Request(mirror_link + core_sub, headers=fake_headers)
+    for sub_mirror in subs:
+        print(f"Dowloading package list from: {mirror_link}")
 
-    content = urlopen(req_core).read().decode('utf-8')
-    content = sub(r'<.*?>', '', content)
-    lines = content.split('\r\n')
+        # Must use a header or I could get a 403 from mirror!
+        fake_headers = { 'User-Agent' : 'Pacstalker' }
+        req_core = Request(mirror_link + sub_mirror, headers=fake_headers)
 
-    with open('package_list', 'w') as pkg_list_file:
-        for l in lines[1:-1]:
-            pkg_list_file.write(l + '\n')
+        content = urlopen(req_core).read().decode('utf-8')
+        content = sub(r'<.*?>', '', content)
+        lines = content.split('\r\n')
+
+        with open('package_list', 'a') as pkg_list_file:
+            for l in lines[4:-3]:
+                pkg_list_file.write(l + '\n')
 
     print('package_list successfully created!')
 
@@ -48,7 +54,7 @@ def loadpkglist():
         for line in pkg_list_file:
             pkg_info = line.split()
 
-            if pkg_info[0][-4:] == '.sig':
+            if pkg_info[0][-4:] == '.sig' or pkg_info[0][:6] == 'local/':
                 continue
 
             pkg = {}
@@ -88,62 +94,6 @@ def search_match(size, pkg_list, eps):
         print(f" M:{pkg['match']:.4}% S:{pkg['size']} LM:{pkg['date']} {pkg['name']}")
 
     return begin, end
-
-def expand_layers(pkt):
-    yield pkt
-    if pkt.payload:
-        yield pkt.payload
-        pkt = pkt.payload
-
-def get_tls_transfer(sessions):
-    for s in sessions:
-        for pkt in sessions[s]:
-            if pkt.haslayer(TLSServerHello):
-                return s;
-
-def analyze_pcap(pcapfile):
-    load_layer("tls")
-    packets = rdpcap(pcapfile)
-
-    estimated_size = 0
-    padding = 0
-    tls_header_size = 5
-    http_header_size = 0
-    ssl_header_size = 3
-    sessions = packets.sessions()
-
-    transfer_s = get_tls_transfer(sessions)
-    c = 0
-
-    # for pkt in sessions[transfer_s]:
-    #     pkt.show()
-    #     if (pkt.haslayer(TLSApplicationData)):
-    #         len_to_skip = pkt[TLSApplicationData].len
-    #         pass
-
-    for pkt in sessions[transfer_s]:
-        if (pkt.haslayer(TLSApplicationData)):
-            estimated_size += len(pkt[TCP].payload) - tls_header_size
-            c += 1
-            for l in expand_layers(pkt[TLSApplicationData]):
-                if hasattr(l, "padlen") and l.padlen is not None:
-                    print(f"TLSApplicationData padding: {l.padlen}")
-                    padding += l.padlen & 0xff
-        elif (pkt.haslayer(SSLv2)):
-            estimated_size += len(pkt[TCP].payload) - ssl_header_size
-            c += 1
-            for l in expand_layers(pkt[SSLv2]):
-                if hasattr(l, "padlen") and l.padlen is not None:
-                    padding += l.padlen & 0xff
-
-    estimated_size -= http_header_size
-
-    print(f"Number of ApplicationData packets: {c}\nEstimated size : {estimated_size}")
-    print(f"Padding bytes: {padding}")
-    print(f"Estimated_size - padding =  {estimated_size - padding}")
-
-    return estimated_size
-
 
 def analyze_pcap_clear(pcapfile):
     packets = rdpcap(pcapfile)
@@ -199,20 +149,3 @@ if options.update:
 size = get_size(args[0])
 pkg_list = loadpkglist()
 search_match(size, pkg_list, 10)
-
-# if not args:
-#     parser.error("No pcap record given.")
-#     sys.exit(0)
-
-# if options.update:
-#     getpkglist()
-
-# size = 0
-# if options.clear:
-#     size = analyze_pcap_clear(args[0])
-# else:
-#     size = analyze_pcap(args[0])
-
-# if not options.size:
-#     pkg_list = loadpkglist()
-#     search_match(size, pkg_list, 10)
