@@ -2,14 +2,13 @@ CFLAGS = -Wall -Wextra -Werror -lpcap -g -pedantic
 OBJ = main.o
 EXEC = pacstalker
 
-all: pacstalker
+all: ${EXEC}
 
-pacstalker: ${OBJ}
+${EXEC}: ${OBJ}
 	${CC} ${CFLAGS} ${OBJ} -o $@
 
 debug: CFLAGS += -DDEBUG
-debug: ${OBJ}
-	${CC} ${CFLAGS} ${OBJ} -o ${EXEC}
+debug: ${EXEC}
 
 clean:
-	${RM} -rf ${OBJ} pacstalker
+	${RM} -rf ${OBJ} ${EXEC}
