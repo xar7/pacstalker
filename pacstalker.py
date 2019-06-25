@@ -7,6 +7,8 @@ from scapy.all import *
 from scapy_http.http import *
 from optparse import OptionParser
 
+import subprocess
+
 def getpkglist():
     """
     Connect to the mirror and create the plain text file package_list.
@@ -64,7 +66,7 @@ def search_match(size, pkg_list, eps):
     m = pkg_list[(end+begin)//2]['size']
 
     c = 0
-    while end - begin > 4:
+    while end - begin > 6:
         if m > size + eps:
             end = (end+begin)//2
         if m < size - eps:
@@ -75,9 +77,13 @@ def search_match(size, pkg_list, eps):
         if c > 100:
             break
 
+    for i in range(begin, end):
+        pkg_list[i]['match'] = abs(pkg_list[i]['size'] - size) / size * 100;
+
     print("Your package matches:")
     for i in range(begin, end):
-        print(f" S:{pkg_list[i]['size']} LM:{pkg_list[i]['date']} {pkg_list[i]['name']}")
+        match = 100 - abs(pkg_list[i]['size'] - size) / size * 100;
+        print(f" M:{match:.4}% S:{pkg_list[i]['size']} LM:{pkg_list[i]['date']} {pkg_list[i]['name']}")
 
     return begin, end
 
@@ -115,7 +121,6 @@ def analyze_pcap(pcapfile):
 
     for pkt in sessions[transfer_s]:
         if (pkt.haslayer(TLSApplicationData)):
-            pkt.show()
             estimated_size += len(pkt[TCP].payload) - tls_header_size
             c += 1
             for l in expand_layers(pkt[TLSApplicationData]):
@@ -123,7 +128,6 @@ def analyze_pcap(pcapfile):
                     print(f"TLSApplicationData padding: {l.padlen}")
                     padding += l.padlen & 0xff
         elif (pkt.haslayer(SSLv2)):
-            pkt.show()
             estimated_size += len(pkt[TCP].payload) - ssl_header_size
             c += 1
             for l in expand_layers(pkt[SSLv2]):
@@ -160,6 +164,11 @@ def analyze_pcap_clear(pcapfile):
 
     return estimated_size
 
+def get_size(pcapfile):
+    output = subprocess.run(["src/pacstalker", pcapfile], capture_output=True)
+    size = int(output.stdout.decode().strip())
+    print(f"package size: {size}")
+    return size
 
 
 parser = OptionParser(usage = "Usage: pacstalker.py [options] <record>")
@@ -169,22 +178,39 @@ parser.add_option("-u", "--update", action="store_true", default=False,
                   help="update package list from mirror")
 parser.add_option("-s", "--size", action="store_true", default=False,
                   help="just print the estimated size (no pkg match)")
+parser.add_option("-t", "--ta-mere", type=int)
 
 (options, args) = parser.parse_args()
 
+if options.ta_mere:
+    pkg_list = loadpkglist()
+    search_match(options.ta_mere, pkg_list, 10)
+    sys.exit(0)
+
 if not args:
     parser.error("No pcap record given.")
-    exit
+    sys.exit(1)
 
 if options.update:
     getpkglist()
 
-size = 0
-if options.clear:
-    size = analyze_pcap_clear(args[0])
-else:
-    size = analyze_pcap(args[0])
+size = get_size(args[0])
+pkg_list = loadpkglist()
+search_match(size, pkg_list, 10)
 
-if not options.size:
-    pkg_list = loadpkglist()
-    search_match(size, pkg_list, 10)
+# if not args:
+#     parser.error("No pcap record given.")
+#     sys.exit(0)
+
+# if options.update:
+#     getpkglist()
+
+# size = 0
+# if options.clear:
+#     size = analyze_pcap_clear(args[0])
+# else:
+#     size = analyze_pcap(args[0])
+
+# if not options.size:
+#     pkg_list = loadpkglist()
+#     search_match(size, pkg_list, 10)
