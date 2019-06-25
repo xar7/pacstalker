@@ -52,8 +52,7 @@ void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
     }
 }
 
-size_t get_tls_size(bool keep_header) {
-    (void) keep_header;
+size_t get_tls_size() {
     size_t my_offset = 0;
     size_t total_size = 0;
     int c = 0;
@@ -86,30 +85,6 @@ int main(int argc, char **argv)
     pcap_t *mypcap;
     char errbuf[PCAP_ERRBUF_SIZE];
 
-    int opt = 0;
-    int option_index = 0;
-    bool keep_header = false;
-    struct option options[] = {
-        {"help", no_argument, 0, 'h'},
-        {"keep_header", no_argument, 0, 'k'}
-    };
-
-    while ((opt = getopt_long(argc, argv, "hk", options, &option_index)) != -1) {
-        switch (opt) {
-        case 'h':
-            puts("Pacstalker is a pcap analysis tool that is capable of determinating the total size of the tls encrypted data contained in a pcap record.\n");
-            puts("Usage: ./pacstalker [option] pcaprecord\n");
-            puts("Options:\n\t--help -h: Display this help and exit\n\t--keep_header -k: Keep the size of the html header when calculating the tls total size.\n");
-            return 0;
-        case 'k':
-            keep_header = true;
-            break;
-        default:
-            fprintf(stderr, "invalid option bro!\n");
-            break;
-        }
-    }
-
     tls_data_base = malloc(TLS_BEGIN_SIZE);
     if (!tls_data_base) {
         fprintf(stderr, "malloc() failed, you are in deep shit\n");
@@ -127,7 +102,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    printf("%zu\n", get_tls_size(keep_header));
+    printf("%zu\n", get_tls_size());
 
     return 0;
 }

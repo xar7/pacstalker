@@ -1,14 +1,15 @@
 CFLAGS = -Wall -Wextra -Werror -lpcap -g -pedantic
-OBJ = main.o
-EXEC = pacstalker
+OBJ = src/main.o
+EXEC = bin/pacstalker
 
 all: ${EXEC}
 
 ${EXEC}: ${OBJ}
+	mkdir -p bin
 	${CC} ${CFLAGS} ${OBJ} -o $@
 
 debug: CFLAGS += -DDEBUG
 debug: ${EXEC}
 
 clean:
-	${RM} -rf ${OBJ} ${EXEC}
+	${RM} -rf ${OBJ} bin/ --

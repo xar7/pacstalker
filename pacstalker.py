@@ -126,7 +126,7 @@ def analyze_pcap_clear(pcapfile):
     return estimated_size
 
 def get_size(pcapfile):
-    output = subprocess.run(["src/pacstalker", pcapfile], capture_output=True)
+    output = subprocess.run(["bin/pacstalker", pcapfile], capture_output=True)
     size = int(output.stdout.decode().strip())
     print(f"package size: {size}")
     return size
