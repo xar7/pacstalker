@@ -14,7 +14,7 @@ def getpkglist():
     """
     Connect to the mirror and create the plain text file package_list.
     This file will be used to match a packet name by its size.
-    Automatically called by loadpkglist when the file is not found in local.
+    Automatically called by loadpkglist when the file is not found.
     """
 
     # Delete the existing package list
@@ -43,6 +43,11 @@ def getpkglist():
 
 
 def loadpkglist():
+    """
+    Load the package list in memory and sort it by the size of the packages.
+    If the package list is not found, call getpkglist() to download it.
+    """
+
     if not path.isfile('package_list'):
         print('Package list not found.\n')
         getpkglist()
@@ -67,6 +72,9 @@ def loadpkglist():
     return pkg_list
 
 def search_match(size, pkg_list, eps):
+    """
+    Perform a dichotomy through the package list to find the matching packages.
+    """
     begin = 0
     end = len(pkg_list) - 1
     m = pkg_list[(end+begin)//2]['size']
@@ -79,6 +87,7 @@ def search_match(size, pkg_list, eps):
             begin = (end+begin)//2
         m = pkg_list[(end+begin)//2]['size']
 
+        # Dichotomy panics
         c += 1
         if c > 100:
             break
