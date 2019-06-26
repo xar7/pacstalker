@@ -2,6 +2,8 @@ CFLAGS = -Wall -Wextra -Werror -lpcap -g -pedantic
 OBJ = src/main.o
 EXEC = bin/pacstalker
 
+.PHONY: clean debug
+
 all: ${EXEC}
 
 ${EXEC}: ${OBJ}
