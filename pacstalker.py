@@ -17,9 +17,6 @@ def getpkglist():
     Automatically called by loadpkglist when the file is not found.
     """
 
-    # Delete the existing package list
-    remove('package_list')
-
     #mirror_link = 'https://mirror.osbeck.com/archlinux'
     mirror_link = 'https://mirrors.niyawe.de/archlinux/'
     subs = ['/core/os/x86_64/', '/community/os/x86_64/', '/extra/os/x86_64/']
@@ -147,6 +144,8 @@ if not args:
     sys.exit(1)
 
 if options.update:
+    # Delete the existing package list
+    remove('package_list')
     getpkglist()
 
 if options.clear:
