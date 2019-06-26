@@ -139,14 +139,8 @@ parser.add_option("-u", "--update", action="store_true", default=False,
                   help="update package list from mirror")
 parser.add_option("-s", "--size", action="store_true", default=False,
                   help="just print the estimated size (no pkg match)")
-parser.add_option("-t", "--ta-mere", type=int)
 
 (options, args) = parser.parse_args()
-
-if options.ta_mere:
-    pkg_list = loadpkglist()
-    search_match(options.ta_mere, pkg_list, 10)
-    sys.exit(0)
 
 if not args:
     parser.error("No pcap record given.")
@@ -154,6 +148,15 @@ if not args:
 
 if options.update:
     getpkglist()
+
+if options.clear:
+    size = analyze_pcap_clear(args[0])
+    search_match(size, pkg_list, 10)
+    sys.exit(0)
+
+if options.size:
+    get_size(args[0])
+    sys.exit(0)
 
 size = get_size(args[0])
 pkg_list = loadpkglist()
