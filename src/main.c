@@ -42,6 +42,10 @@ void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
             {
                 tls_data_size = current_offset + 2 * size_to_copy;
                 tls_data_base = realloc(tls_data_base, tls_data_size);
+                if (!tls_data_base) {
+                    fprintf(stderr, "realloc failed!\n");
+                    exit(1);
+                }
             }
 
             memcpy(tls_data_base + current_offset, bytes + useless_size,
@@ -87,7 +91,7 @@ int main(int argc, char **argv)
 
     tls_data_base = malloc(TLS_BEGIN_SIZE);
     if (!tls_data_base) {
-        fprintf(stderr, "malloc() failed, you are in deep shit\n");
+        fprintf(stderr, "malloc() failed\n");
         return 1;
     }
 
