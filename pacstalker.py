@@ -122,11 +122,13 @@ def analyze_pcap_clear(pcapfile):
 
     return estimated_size
 
-def get_size(pcapfile):
+def analyze_packages_size(pcapfile):
     output = subprocess.run(["bin/pacstalker", pcapfile], capture_output=True)
-    size = int(output.stdout.decode().strip())
-    print(f"package size: {size}")
-    return size
+    sizes_string = output.stdout.decode().strip().split('\n')
+    pkg_list = loadpkglist()
+    for size in sizes_string:
+        print(f"package size: {size}")
+        search_match(int(size), pkg_list, 10)
 
 
 parser = OptionParser(usage = "Usage: pacstalker.py [options] <record>")
@@ -157,6 +159,4 @@ if options.size:
     get_size(args[0])
     sys.exit(0)
 
-size = get_size(args[0])
-pkg_list = loadpkglist()
-search_match(size, pkg_list, 10)
+analyze_packages_size(args[0])
