@@ -59,7 +59,10 @@ void pktHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
 size_t get_tls_size() {
     size_t my_offset = 0;
     size_t total_size = 0;
-    int c = 0;
+    size_t current_size = 0;
+
+    unsigned c = 0;
+    unsigned server_hello_c = 0;
 
     while (my_offset < current_offset)
     {
@@ -70,13 +73,28 @@ size_t get_tls_size() {
 
         if (tlsHeader->type == TLS_APPLICATION_DATA) {
             c++;
-            total_size += ntohs(tlsHeader->length) - 23;
+            current_size += ntohs(tlsHeader->length) - TLS_WAT_SIZE;
+            total_size += ntohs(tlsHeader->length) - TLS_WAT_SIZE;
             DBG("TLSApplicationData found: Incrementing size\n");
         }
+        else if (tlsHeader->type == TLS_HANDSHAKE) {
+            uint8_t *handshake_type = (uint8_t *) (tlsHeader + 1);
+            if (*handshake_type == TLS_SERVER_HELLO) {
+                if (server_hello_c != 0) {
+                    printf("%zu\n", current_size - HTTP_HEADER_SIZE);
+                    current_size = 0;
+                }
+                server_hello_c++;
+            }
+            DBG("TLS Handshake type: %u\n", *handshake_type);
+        }
 
-        DBG("TLS: Number of application data found: %d\n", c);
+        DBG("TLS: Number of application data found: %u\n", c);
         my_offset += sizeof(struct tlshdr) + ntohs(tlsHeader->length);
     }
+
+    DBG("Number of server hello: %u\n", server_hello_c);
+    printf("%zu\n", current_size - HTTP_HEADER_SIZE);
 
     return total_size - HTTP_HEADER_SIZE;
 }
@@ -106,7 +124,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    printf("%zu\n", get_tls_size());
+    get_tls_size();
 
     return 0;
 }
